@@ -46,3 +46,22 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10.
   - Kích thước tập mẫu 14 items khiến dải CI của bootstrap khá rộng ([-0.500, -0.057]), chỉ phát hiện tin cậy các hồi quy lớn.
   - Judge replay kiểm tra trên tập 100 câu đã công khai, cần thêm dữ liệu held-out mới từ người dùng thật.
 - **Khi nào tăng eval-set version:** Khi thêm các ca kiểm thử mới từ failure trace hoặc mở rộng tập dữ liệu sang v2 (tập adversarial), hoặc khi thay đổi chính sách bồi thường. Bắt buộc tăng `eval_set_version: v2` và chạy lại baseline mới.
+
+## Phần v2 (Advanced / Expert — M5–M7)
+
+- **Run ID / Eval set SHA v2:**
+  - Baseline v2 Run ID: `E-swarm-20261118-cc7e` (sha: `cc7e2cce5be3`).
+  - Quy mô: 28 items × 5 seeds = 140 trials (gồm 14 item v1 + 14 claim từ adversarial pack).
+  - Ánh xạ cơ chế tấn công `config/fm_map.yaml`: Đã map toàn bộ 8 cơ chế đối kháng vào `FM-02` đến `FM-09`, đảm bảo mỗi FM bị tấn công đều có $\ge 3$ items.
+- **Đo nhiễu A/A & Thiết lập ngưỡng `pass_hat_5` (M6):**
+  - Thử nghiệm A/A trên 2 bộ seed (11..55 vs 66..110) cho $\Delta = 0.0000$ trên MockLLM (với LLM thật dải nhiễu sẽ lớn hơn 0 do tính bất định).
+  - Chọn ngưỡng sàn `pass_hat_5 ≥ 0.80` (nằm ngoài dải nhiễu và thấp hơn mức baseline 0.8929): giúp chặn đứng `flaky_regression` (lỗi 1/5 seed) mà không gây báo nhầm (false alarm) trên `fixed` và `honest_refactor`.
+- **Phân tích Lát cắt (Slice Gate — M5):**
+  - `slice:money_movement`: Bắt chính xác lỗi `slice_regression` (lỗi cộng điều khoản ở seed lẻ, khiến `pass_rate` toàn cục $0.9357$ vẫn trên sàn nhưng lát cắt tiền tệ bị tụt).
+  - `slice:adversarial`: Đảm bảo độ bền vững trước các kỹ thuật tấn công prompt/policy.
+  - `slice:denial`: Đảm bảo các đơn không đủ điều kiện luôn bị từ chối chính xác.
+- **Cổng chống gian lận Eval (Integrity Check & Ratchet — M7):**
+  - Chặn 100% (4/4 trap công khai + trap ẩn): `evaluator_errors_as_nan`, `dropped_failing_rows`, `cherry_picked_seeds`, `loosened_spec`.
+  - Scorecard mutation: **3/3 mutant bị chặn** (`seeded_regression`, `slice_regression`, `flaky_regression`) và **0 báo nhầm** (`fixed`, `honest_refactor` được merge).
+- **Giới hạn cỡ mẫu (Sample Size Limitations):**
+  - Với $N = 5$ seeds, một lỗi chỉ xuất hiện ở $1/3$ seed (`rare` bug, xác suất xuất hiện ~33%) **không thể phát hiện ổn định** về mặt toán học. Để bắt được bug rare với độ tin cậy $95\%$, hệ thống cần tối thiểu 15–20 seeds. Giữ vững ngưỡng thiết kế, không hạ sàn để "bắt ép" lỗi hiếm nhằm tránh phá hủy độ nhạy của gate.
